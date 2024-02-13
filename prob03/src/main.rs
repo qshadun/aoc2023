@@ -54,7 +54,7 @@ impl Engine {
                             k += 1;
                         }
                         if self.is_part_number(i, j, k - 1) {
-                            let num: String = (&self.schematic[i][j..k]).iter().collect();
+                            let num: String = self.schematic[i][j..k].iter().collect();
                             let num: usize = num.parse().unwrap();
                             ans += num;
                         }
@@ -181,7 +181,7 @@ impl Engine {
             hi += 1;
         }
 
-        let num: String = (&self.schematic[r][lo..hi]).iter().collect();
+        let num: String = self.schematic[r][lo..hi].iter().collect();
         num.parse().unwrap()
     }
 }
