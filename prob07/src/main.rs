@@ -22,11 +22,30 @@ enum HandType {
 impl HandType {
     fn from_hand(cards: &[Card; 5]) -> Self {
         let mut counter: HashMap<Card, u8> = HashMap::new();
+        // part1
+        // for c in cards.iter() {
+        //     *counter.entry(*c).or_default() += 1;
+        // }
+        // let mut values: Vec<u8> = counter.values().copied().collect();
+        // part2 start
+        let mut wild_card_cnt = 0;
         for c in cards.iter() {
-            *counter.entry(*c).or_default() += 1;
+            match c {
+                Card::Jack => wild_card_cnt += 1,
+                _ => {
+                    *counter.entry(*c).or_default() += 1;
+                }
+            }
         }
         let mut values: Vec<u8> = counter.values().copied().collect();
         values.sort();
+        if values.is_empty() {
+            return Self::FiveOfAKind;
+        }
+        let last_idx = values.len() - 1;
+        values[last_idx] += wild_card_cnt;
+        // part2 end
+
         if values.len() == 1 {
             Self::FiveOfAKind
         } else if values.len() == 2 && values[1] == 4 {
@@ -46,6 +65,7 @@ impl HandType {
 }
 #[derive(Ord, PartialOrd, Eq, PartialEq, Copy, Clone, Hash)]
 enum Card {
+    Jack, // comment for part1
     Two,
     Three,
     Four,
@@ -55,7 +75,7 @@ enum Card {
     Eight,
     Nine,
     Ten,
-    Jack,
+    // Jack, // uncomment for part1
     Queen,
     King,
     Ace,
