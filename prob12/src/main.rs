@@ -11,7 +11,6 @@ fn part1(input: &str) {
     for line in input.lines() {
         let mut rec = Record::from_line(line, 1);
         ans += rec.calc_arrangements();
-        println!("{} {}", line, rec.dp[0][0]);
     }
     println!("part1 = {}", ans);
 }
@@ -65,7 +64,7 @@ impl Record {
     }
 
     fn calc_arrangements(&mut self) -> i64 {
-        self.recur(0, 0);
+        self.recur(0, 0)
     }
 
     fn recur(&mut self, i: usize, j: usize) -> i64 {
@@ -77,17 +76,15 @@ impl Record {
         if i >= m {
             return 0;
         }
-        if j == n {
-            for k in i..m {
-                if self.conditions[k] == '#' {
-                    self.dp[i][j] = 0;
-                    return 0;
-                }
-            }
-            self.dp[i][j] = 1;
-            return 1;
-        }
         if self.dp[i][j] != -1 {
+            return self.dp[i][j];
+        }
+        if j == n {
+            if self.conditions[i] == '#' {
+                self.dp[i][j] = 0;
+            } else {
+                self.dp[i][j] = self.recur(i + 1, j);
+            }
             return self.dp[i][j];
         }
 
