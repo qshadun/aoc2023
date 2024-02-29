@@ -54,10 +54,10 @@ impl Board {
                     break;
                 }
             }
-            for i in 0..m {
-                expanded[i].push(self.matrix[i][j]);
+            for (i, e) in expanded.iter_mut().enumerate() {
+                e.push(self.matrix[i][j]);
                 if !has_galaxy {
-                    expanded[i].push(self.matrix[i][j]);
+                    e.push(self.matrix[i][j]);
                 }
             }
         }
@@ -71,12 +71,11 @@ impl Board {
         for i in 0..galaxies.len() - 1 {
             let (x1, y1) = galaxies[i];
 
-            for j in i + 1..galaxies.len() {
+            for (j, (x2, y2)) in galaxies.iter().enumerate().skip(i + 1) {
                 if j == i {
                     continue;
                 }
-                let (x2, y2) = galaxies[j];
-                ans += x1.abs_diff(x2) + y1.abs_diff(y2);
+                ans += x1.abs_diff(*x2) + y1.abs_diff(*y2);
             }
         }
         println!("part1 = {}", ans);
@@ -115,12 +114,11 @@ impl Board {
         for i in 0..galaxies.len() - 1 {
             let (x1, y1) = galaxies[i];
             let (x1, y1) = (x1 as usize, y1 as usize);
-            for j in i + 1..galaxies.len() {
+            for (j, (x2, y2)) in galaxies.iter().enumerate().skip(i + 1) {
                 if j == i {
                     continue;
                 }
-                let (x2, y2) = galaxies[j];
-                let (x2, y2) = (x2 as usize, y2 as usize);
+                let (x2, y2) = (*x2 as usize, *y2 as usize);
                 for x in x1.min(x2)..x1.max(x2) {
                     if rows.contains(&x) {
                         ans += expand_scale;
