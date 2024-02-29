@@ -46,13 +46,13 @@ impl Garden {
     fn part1(&self) {
         let mut cur = self.seeds.clone();
         for cur_map in self.mappings.iter() {
-            for i in 0..cur.len() {
-                let source = cur[i];
+            for x in &mut cur {
+                let source = *x;
                 for m in cur_map {
                     if source < m.source_start {
                         break;
                     } else if source >= m.source_start && source < m.source_start + m.range {
-                        cur[i] = m.target_start + source - m.source_start;
+                        *x = m.target_start + source - m.source_start;
                     }
                 }
             }
@@ -85,30 +85,26 @@ impl Garden {
             while i < cur_map.len() && cur_map[i].source_start + cur_map[i].range - 1 < r.start {
                 i += 1;
             }
-            if i == cur_map.len() {
+            if i == cur_map.len() || r.start + r.range - 1 < cur_map[i].source_start {
                 new_range.push(r);
             } else {
-                if r.start + r.range - 1 < cur_map[i].source_start {
-                    new_range.push(r);
-                } else {
-                    let intersect_start = r.start.max(cur_map[i].source_start);
-                    if intersect_start > r.start {
-                        new_range.push(Range::new(r.start, intersect_start - r.start));
-                    }
-                    let intersect_end =
-                        (r.start + r.range - 1).min(cur_map[i].source_start + cur_map[i].range - 1);
-                    if intersect_end < r.start + r.range - 1 {
-                        q.push_front(Range::new(
-                            intersect_end + 1,
-                            r.start + r.range - intersect_end,
-                        ));
-                    }
-                    let mapped_start = cur_map[i].target_start + r.start - cur_map[i].source_start;
-                    new_range.push(Range::new(
-                        mapped_start,
-                        intersect_end - intersect_start + 1,
+                let intersect_start = r.start.max(cur_map[i].source_start);
+                if intersect_start > r.start {
+                    new_range.push(Range::new(r.start, intersect_start - r.start));
+                }
+                let intersect_end =
+                    (r.start + r.range - 1).min(cur_map[i].source_start + cur_map[i].range - 1);
+                if intersect_end < r.start + r.range - 1 {
+                    q.push_front(Range::new(
+                        intersect_end + 1,
+                        r.start + r.range - intersect_end,
                     ));
                 }
+                let mapped_start = cur_map[i].target_start + r.start - cur_map[i].source_start;
+                new_range.push(Range::new(
+                    mapped_start,
+                    intersect_end - intersect_start + 1,
+                ));
             }
         }
         new_range
