@@ -1,13 +1,22 @@
-use std::{collections::HashMap, fs::read_to_string};
+use std::{
+    collections::{HashMap, VecDeque},
+    fs::read_to_string,
+};
 
 fn main() {
     let input = read_to_string("inputs/input19.txt").unwrap();
     part1(&input);
+    part2(&input);
 }
 
 fn part1(input: &str) {
     let game = Game::from_input(input);
     println!("{}", game.part1());
+}
+
+fn part2(input: &str) {
+    let game = Game::from_input(input);
+    println!("{}", game.part2());
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -174,6 +183,45 @@ impl Part {
     }
 }
 
+fn reverse_condition(condition: (char, char, i32)) -> (char, char, i32) {
+    let (var, comp, v) = condition;
+    match comp {
+        '>' => (var, '<', v + 1),
+        '<' => (var, '>', v - 1),
+        _ => panic!("invalid comp"),
+    }
+}
+
+fn count_one_var(conditions: Vec<(char, i32)>) -> i64 {
+    let mut min = 0;
+    let mut max = 4001;
+    for (comp, v) in conditions {
+        match comp {
+            '<' => max = max.min(v),
+            '>' => min = min.max(v),
+            _ => panic!("invalid comp"),
+        }
+    }
+    (max - min - 1).max(0) as i64
+}
+
+fn count(conditions: &Vec<(char, char, i32)>) -> i64 {
+    let mut xs = vec![];
+    let mut ms = vec![];
+    let mut aas = vec![];
+    let mut ss = vec![];
+    for &(var, comp, v) in conditions {
+        match var {
+            'x' => xs.push((comp, v)),
+            'm' => ms.push((comp, v)),
+            'a' => aas.push((comp, v)),
+            's' => ss.push((comp, v)),
+            _ => {}
+        }
+    }
+    count_one_var(xs) * count_one_var(ms) * count_one_var(aas) * count_one_var(ss)
+}
+
 #[derive(Debug)]
 struct Game<'a> {
     workflows: HashMap<&'a str, WorkFlow<'a>>,
@@ -220,5 +268,41 @@ impl<'a> Game<'a> {
             }
         }
         score
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn part2(&self) -> i64 {
+        let mut ans = 0;
+        let mut q: VecDeque<(Destination, Vec<(char, char, i32)>)> = VecDeque::new();
+        q.push_back((Destination::Label("in"), vec![]));
+        while let Some((cur, mut path)) = q.pop_front() {
+            if count(&path) == 0 {
+                continue;
+            }
+            match cur {
+                Destination::Label(cur_label) => {
+                    let wf = self.workflows.get(cur_label).unwrap();
+                    for rule in wf.rules.iter() {
+                        match rule {
+                            Rule::ConditionJump { condition, dest } => {
+                                let mut take = path.clone();
+                                take.push(*condition);
+                                q.push_back((*dest, take));
+                                path.push(reverse_condition(*condition));
+                            }
+                            Rule::Jump { dest } => {
+                                q.push_back((*dest, path));
+                                break;
+                            }
+                        }
+                    }
+                }
+                Destination::Accepted => {
+                    ans += count(&path);
+                }
+                _ => {}
+            }
+        }
+        ans
     }
 }
