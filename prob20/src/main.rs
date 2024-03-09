@@ -11,15 +11,13 @@ fn main() {
 }
 
 fn part2(input: &str) {
-    let mut machine = Machine::from_input(input);
-    let n1 = machine.first_high("js");
-    let mut machine = Machine::from_input(input);
-    let n2 = machine.first_high("qs");
-    let mut machine = Machine::from_input(input);
-    let n3 = machine.first_high("dt");
-    let mut machine = Machine::from_input(input);
-    let n4 = machine.first_high("ts");
-    let ans = lcm(&[n1, n2, n3, n4]);
+    let mut counts = vec![];
+    // find the upstream module names of the conjuction module before rx
+    for name in ["js", "qs", "dt", "ts"] {
+        let mut machine = Machine::from_input(input);
+        counts.push(machine.first_high(name));
+    }
+    let ans = lcm(&counts);
     println!("part2 = {ans}");
 }
 
@@ -54,160 +52,79 @@ enum FlipState {
 }
 
 #[derive(Debug)]
-struct FlipFlop<'a> {
-    name: &'a str,
-    state: FlipState,
-    downstream: Vec<&'a str>,
+enum ModuleType<'a> {
+    FlipFlop(FlipState),
+    Conjunction(HashMap<&'a str, PulseType>),
+    BroadCaster,
 }
 
-impl<'a> FlipFlop<'a> {
-    fn new(name: &'a str, downstream: Vec<&'a str>) -> Self {
-        Self {
-            name,
-            state: FlipState::Off,
-            downstream,
-        }
-    }
-
-    fn process(&mut self, pt: PulseType) -> Vec<Pulse<'a>> {
-        let mut ans = vec![];
-        match pt {
-            PulseType::Low => match self.state {
-                FlipState::Off => {
-                    self.state = FlipState::On;
-                    for ds in self.downstream.iter() {
-                        ans.push(Pulse {
-                            from: self.name,
-                            dest: ds,
-                            pulse_type: PulseType::High,
-                        });
+impl<'a> ModuleType<'a> {
+    fn process(&mut self, from: &'a str, pt: PulseType) -> Option<PulseType> {
+        match self {
+            ModuleType::FlipFlop(state) => match pt {
+                PulseType::Low => match state {
+                    FlipState::Off => {
+                        *state = FlipState::On;
+                        Some(PulseType::High)
                     }
-                }
-                FlipState::On => {
-                    self.state = FlipState::Off;
-                    for ds in self.downstream.iter() {
-                        ans.push(Pulse {
-                            from: self.name,
-                            dest: ds,
-                            pulse_type: PulseType::Low,
-                        });
+                    FlipState::On => {
+                        *state = FlipState::Off;
+                        Some(PulseType::Low)
                     }
-                }
+                },
+                PulseType::High => None,
             },
-            PulseType::High => {}
-        };
-        ans
-    }
-}
-
-#[derive(Debug)]
-struct Conjunction<'a> {
-    name: &'a str,
-    remember: HashMap<&'a str, PulseType>,
-    downstream: Vec<&'a str>,
-}
-
-impl<'a> Conjunction<'a> {
-    fn new(name: &'a str, downstream: Vec<&'a str>) -> Self {
-        Self {
-            name,
-            remember: HashMap::new(),
-            downstream,
-        }
-    }
-
-    fn process(&mut self, from: &'a str, pt: PulseType) -> Vec<Pulse<'a>> {
-        let mut ans = vec![];
-        self.remember.insert(from, pt);
-        let all_high = self.remember.values().all(|x| *x == PulseType::High);
-        for ds in self.downstream.iter() {
-            if all_high {
-                ans.push(Pulse {
-                    from: self.name,
-                    dest: ds,
-                    pulse_type: PulseType::Low,
-                });
-            } else {
-                ans.push(Pulse {
-                    from: self.name,
-                    dest: ds,
-                    pulse_type: PulseType::High,
-                });
+            ModuleType::Conjunction(remember) => {
+                remember.insert(from, pt);
+                let all_high = remember.values().all(|x| *x == PulseType::High);
+                if all_high {
+                    Some(PulseType::Low)
+                } else {
+                    Some(PulseType::High)
+                }
             }
+            ModuleType::BroadCaster => Some(pt),
         }
-        ans
     }
 }
 
 #[derive(Debug)]
-struct BroadCaster<'a> {
+struct Module<'a> {
     name: &'a str,
+    module_type: ModuleType<'a>,
     downstream: Vec<&'a str>,
-}
-
-impl<'a> BroadCaster<'a> {
-    fn new(name: &'a str, downstream: Vec<&'a str>) -> Self {
-        Self { name, downstream }
-    }
-
-    fn process(&self, pt: PulseType) -> Vec<Pulse<'a>> {
-        let mut ans = vec![];
-        for ds in self.downstream.iter() {
-            ans.push(Pulse {
-                from: self.name,
-                dest: ds,
-                pulse_type: pt,
-            })
-        }
-        ans
-    }
-}
-
-#[derive(Debug)]
-enum Module<'a> {
-    FlipFlop(FlipFlop<'a>),
-    Conjunction(Conjunction<'a>),
-    BroadCaster(BroadCaster<'a>),
 }
 
 const BROADCASTER: &str = "broadcaster";
 impl<'a> Module<'a> {
     fn from_line(line: &'a str) -> Self {
         let parts: Vec<_> = line.split(" -> ").collect();
-        let name = parts[0];
+        let mut name = parts[0];
         let downstream: Vec<_> = parts[1].split(", ").collect();
-        if name == BROADCASTER {
-            Module::BroadCaster(BroadCaster::new(name, downstream))
-        } else if let Some(name) = name.strip_prefix('&') {
-            Module::Conjunction(Conjunction::new(name, downstream))
+        let module_type = if name == BROADCASTER {
+            ModuleType::BroadCaster
+        } else if let Some(_name) = name.strip_prefix('&') {
+            name = _name;
+            ModuleType::Conjunction(HashMap::new())
         } else {
-            let name = &name[1..];
-            Module::FlipFlop(FlipFlop::new(name, downstream))
+            name = &name[1..];
+            ModuleType::FlipFlop(FlipState::Off)
+        };
+        Self {
+            name,
+            module_type,
+            downstream,
         }
     }
 
     fn process(&mut self, from: &'a str, pt: PulseType) -> Vec<Pulse<'a>> {
-        match self {
-            Module::FlipFlop(inner) => inner.process(pt),
-            Module::Conjunction(inner) => inner.process(from, pt),
-            Module::BroadCaster(inner) => inner.process(pt),
+        let mut ans = vec![];
+        if let Some(next_pt) = self.module_type.process(from, pt) {
+            for ds in self.downstream.iter() {
+                ans.push(Pulse::new(self.name, ds, next_pt));
+            }
         }
-    }
-
-    fn name(&self) -> &'a str {
-        match self {
-            Module::FlipFlop(inner) => inner.name,
-            Module::Conjunction(inner) => inner.name,
-            Module::BroadCaster(inner) => inner.name,
-        }
-    }
-
-    fn downstream(&self) -> Vec<&'a str> {
-        match self {
-            Module::FlipFlop(inner) => inner.downstream.clone(),
-            Module::Conjunction(inner) => inner.downstream.clone(),
-            Module::BroadCaster(inner) => inner.downstream.clone(),
-        }
+        ans
     }
 }
 
@@ -221,16 +138,19 @@ impl<'a> Machine<'a> {
         let mut modules = HashMap::new();
         for line in input.lines() {
             let m = Module::from_line(line);
-            let name = m.name();
-            modules.insert(name, m);
+            modules.insert(m.name, m);
         }
 
-        let up_to_down: HashMap<&str, Vec<&str>> =
-            modules.iter().map(|(k, v)| (*k, v.downstream())).collect();
+        let up_to_down: HashMap<&str, Vec<&str>> = modules
+            .iter()
+            .map(|(k, v)| (*k, v.downstream.clone()))
+            .collect();
         for (up, down) in up_to_down.into_iter() {
             for ds in down.into_iter() {
-                if let Some(Module::Conjunction(m)) = modules.get_mut(ds) {
-                    m.remember.insert(up, PulseType::Low);
+                if let Some(m) = modules.get_mut(ds) {
+                    if let ModuleType::Conjunction(ref mut remember) = &mut m.module_type {
+                        remember.insert(up, PulseType::Low);
+                    }
                 }
             }
         }
