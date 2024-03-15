@@ -303,6 +303,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "prob25"
+version = "0.1.0"
+dependencies = [
+ "rand",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
